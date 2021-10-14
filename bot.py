@@ -2,24 +2,18 @@ import discord
 from discord.ext.commands import Bot, Context
 from dotenv import load_dotenv
 import os
-from logs import setup_logging
+from discord import FFmpegPCMAudio
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 FUNNY_MESSAGE = [os.getenv('FUNNY_1'), os.getenv('FUNNY_2')]
 
-MUSIC_PATH = "./music"
+MUSIC_PATH = os.getev('MUSIC_PATH')
 
 client = Bot("$")
-logger = setup_logging()
 
 class Emoji:
     poop = '\U0001F4A9'
-
-@client.event
-async def on_ready():
-    logger.info("The DCLMB is ready.")
-
 
 @client.command()
 async def hello(ctx: Context):
@@ -34,12 +28,14 @@ async def on_message(message: discord.Message):
     await client.process_commands(message)
 
 @client.command(pass_context=True)
-async def join(ctx: Context):
+async def join(ctx: Context) -> bool:
     if (ctx.author.voice):
         channel = ctx.message.author.voice.channel
         await channel.connect()
+        return True
     else:
         await ctx.send("You need to be in a voice channel to do that.")
+        return False
 
 @client.command(pass_context=True)
 async def leave(ctx: Context) -> bool:
@@ -62,10 +58,14 @@ async def switch(ctx: Context):
 async def list(ctx: Context):
     await ctx.send(os.listdir(MUSIC_PATH))
 
+@client.command()
+async def play(ctx: Context, filename: str):
+    if (ctx.author.voice and (ctx.voice_client or await join(ctx))):
+        if filename in os.listdir(MUSIC_PATH):
+            ctx.voice_client.play(FFmpegPCMAudio(f'{MUSIC_PATH}/{filename}'))
+        else:
+            await ctx.send(f"No such file {filename}")
+
 if __name__ == "__main__":
-    try:
-        client.run(TOKEN)
-    except Exception as e:
-        logger.error("DCLMD encountered an error. Restarting.")
-        logger.error(e)
-    
+    client.run(TOKEN)
+
